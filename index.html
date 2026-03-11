@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red AS 24 España - Direcciones Reales Camiones</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        .popup-as24 { line-height: 1.5; min-width: 220px; }
+        .popup-as24 b { color: #e2001a; font-size: 16px; display: block; margin-bottom: 5px; }
+        .btn-gps {
+            display: block;
+            background: #003087;
+            color: white !important;
+            text-align: center;
+            padding: 12px;
+            margin-top: 10px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map').setView([40.4167, -3.7037], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // LISTA DE ESTACIONES VERIFICADAS
+    const estaciones = [
+        {
+            name: "AS 24 BENAVENTE (ZAMORA)",
+            lat: 41.998699,
+            lng: -5.658452,
+            addr: "Cañada Berciana, 9A, 49600 Benavente"
+        },
+        {
+            name: "AS 24 GUARROMÁN (JAÉN)",
+            lat: 38.18841,
+            lng: -3.67391,
+            addr: "Pol. Ind. Guadiel, Parcela 1, 23210 Guarromán"
+        }
+    ];
+
+    estaciones.forEach(est => {
+        const marker = L.marker([est.lat, est.lng]).addTo(map);
+        marker.bindPopup(`
+            <div class="popup-as24">
+                <b>${est.name}</b>
+                <span style="font-size:12px; color:#555;">${est.addr}</span>
+                <a class="btn-gps" href="https://www.google.com/maps/dir/?api=1&destination=${est.lat},${est.lng}&travelmode=driving" target="_blank">RUTA CAMIÓN (Pista Real)</a>
+            </div>
+        `);
+    });
+</script>
+</body>
+</html>
