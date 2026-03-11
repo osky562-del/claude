@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red Real AS24 España | Camiones</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        .popup-as24 { line-height: 1.4; }
+        .popup-as24 b { color: #e2001a; font-size: 15px; }
+        .btn-gps {
+            display: block;
+            background: #003087;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            margin-top: 10px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .header-info {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-info">
+    <strong>🚚 Red AS24 España (Puntos de Acceso Reales)</strong>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const map = L.map('map').setView([40.4167, -3.7037], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // BASE DE DATOS FILTRADA - COORDENADAS DE ACCESO A PISTA
+    const estaciones = [
+        { name: "AS24 LA JONQUERA (Camp de l'Oliver)", lat: 42.41165, lng: 2.87328, addr: "Pol. Ind. Camp de l'Oliver, Calle Mas de l'Hort" },
+        { name: "AS24 IRUN (Zaisa III)", lat: 43.33595, lng: -1.76562, addr: "C/ Antxotxipi, 2 (Frontera)" },
+        { name: "AS24 RIBARROJA (Sector 13)", lat: 39.48118, lng: -0.56635, addr: "A-3 Salida 339, Avda. dels Fusters" },
+        { name: "AS24 GUARROMAN (A-4)", lat: 38.18844, lng: -3.67395, addr: "Pol. Ind. Guadiel, Autovía A-4 KM 280" },
+        { name: "AS24 BENAVENTE (A-6)", lat: 42.02328, lng: -5.65147, addr: "Autovía A-6, KM 261 (Punto Estratégico)" },
+        { name: "AS24 LA MUELA (A-2)", lat: 41.57444, lng: -1.11892, addr: "A-2 KM 306, Pol. Ind. Centrovía" },
+        { name: "AS24 PICASSENT (A-7)", lat: 39.33391, lng: -0.43734, addr: "A-7 KM 355, Pol. Ind. La Coma" },
+        { name: "AS24 ALBACETE (Romica)", lat: 39.05204, lng: -1.84115, addr: "Pol. Ind. Romica, Av. B" },
+        { name: "AS24 SAN SEBASTIÁN DE LOS REYES", lat: 40.57814, lng: -3.61218, addr: "A-1 KM 24 (Vía de Servicio)" },
+        { name: "AS24 MERIDA", lat: 38.94825, lng: -6.32658, addr: "Autovía A-5 KM 341" },
+        { name: "AS24 ANTEQUERA", lat: 37.06583, lng: -4.54528, addr: "A-92 KM 149 (Centro Logístico Antequera)" }
+    ];
+
+    estaciones.forEach(est => {
+        const marker = L.marker([est.lat, est.lng]).addTo(map);
+        marker.bindPopup(`
+            <div class="popup-as24">
+                <b>${est.name}</b><br>
+                ${est.addr}<br>
+                <a class="btn-gps" href="https://www.google.com/maps/dir/?api=1&destination=${est.lat},${est.lng}" target="_blank">NAVEGAR AHORA</a>
+            </div>
+        `);
+    });
+
+</script>
+</body>
+</html>
