@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AS24 · Mapa Gasolineras Camiones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --red:#e8001d; --dark:#0c0c0c; --panel:#141414;
+    --border:#252525; --text:#f0f0f0; --muted:#777;
+    --green:#22c55e; --blue:#60a5fa; --yellow:#facc15; --purple:#c084fc;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: 'Barlow', sans-serif;
+    background: var(--dark);
+    color: var(--text);
+  }
+
+  /* ── LAYOUT FIJO ── */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    height: 58px;
+    min-height: 58px;
+    background: #080808;
+    border-bottom: 2px solid var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 1000;
+    flex-shrink: 0;
+  }
+
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-badge {
+    background: var(--red);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900; font-size: 20px; letter-spacing: 1px;
+    color: #fff; padding: 5px 18px 5px 10px;
+    clip-path: polygon(0 0,100% 0,92% 100%,0 100%);
+  }
+  .logo-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:15px; letter-spacing:3px; text-transform:uppercase; }
+  .logo-sub { font-size:10px; color:var(--muted); letter-spacing:1.5px; }
+
+  .view-tabs { display:flex; gap:4px; background:#111; padding:5px; border-radius:8px; border:1px solid var(--border); }
+  .tab-btn {
+    background:transparent; border:none; color:var(--muted);
+    font-family:'Barlow Condensed',sans-serif; font-weight:700;
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:6px 14px; border-radius:5px; cursor:pointer; transition:all 0.2s;
+  }
+  .tab-btn:hover { color:var(--text); background:#1e1e1e; }
+  .tab-btn.active { background:var(--red); color:#fff; }
+
+  .hstats { display:flex; gap:16px; align-items:center; }
+  .stat { text-align:center; }
+  .stat-num { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; color:var(--red); line-height:1; }
+  .stat-lbl { font-size:9px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+  .hdiv { width:1px; height:28px; background:var(--border); }
+
+  /* ── CONTENT AREA ── */
+  #content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── VIEWS ── */
+  .view {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+  }
+  .view.active { display: flex; }
+
+  /* ── MAP VIEW ── */
+  #mapView { flex-direction: row; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 290px;
+    min-width: 290px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .search-wrap { padding:12px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .sbox { position:relative; margin-bottom:8px; }
+  .sbox input {
+    width:100%; background:#1c1c1c; border:1px solid var(--border);
+    border-radius:5px; color:var(--text); font-family:'Barlow',sans-serif;
+    font-size:13px; padding:8px 32px 8px 10px; outline:none; transition:border-color 0.2s;
+  }
+  .sbox input:focus { border-color:var(--red); }
+  .sbox input::placeholder { color:var(--muted); }
+  .sbox-icon { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; font-size:13px; }
+
+  .chips { display:flex; gap:5px; flex-wrap:wrap; }
+  .chip {
+    background:#1c1c1c; border:1px solid var(--border); border-radius:20px;
+    padding:3px 9px; font-size:10px; font-family:'Barlow Condensed',sans-serif;
+    font-weight:600; letter-spacing:0.5px; color:var(--muted);
+    cursor:pointer; transition:all 0.15s; text-transform:uppercase;
+  }
+  .chip:hover, .chip.active { background:var(--red); border-color:var(--red); color:#fff; }
+
+  .list-head {
+    padding:7px 12px; font-family:'Barlow Condensed',sans-serif;
+    font-size:10px; letter-spacing:2px; color:var(--muted);
+    text-transform:uppercase; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+    flex-shrink: 0;
+  }
+  .cbadge { background:var(--red); color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; }
+
+  #stList {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #stList::-webkit-scrollbar { width:3px; }
+  #stList::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .scard {
+    padding:10px 12px; border-bottom:1px solid #191919;
+    cursor:pointer; transition:background 0.12s;
+    display:flex; align-items:center; gap:10px;
+  }
+  .scard:hover { background:#1a1a1a; }
+  .scard.active { background:#1e0d0d; border-left:3px solid var(--red); padding-left:9px; }
+
+  .scard-ico {
+    width:30px; height:30px; background:var(--red);
+    border-radius:50% 50% 50% 0; display:flex; align-items:center;
+    justify-content:center; font-size:12px; flex-shrink:0; transform:rotate(-45deg);
+  }
+  .scard-ico span { transform:rotate(45deg); display:block; }
+  .scard-body { flex:1; min-width:0; }
+  .scard-name { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .scard-reg { font-size:10px; color:var(--muted); margin:1px 0 4px; }
+  .scard-pills { display:flex; gap:3px; flex-wrap:wrap; }
+
+  .pill { padding:1px 5px; border-radius:3px; font-size:9px; font-family:'Barlow Condensed',sans-serif; font-weight:600; letter-spacing:0.3px; text-transform:uppercase; }
+  .p-go    { background:#0e2e0e; color:var(--green);  border:1px solid #1e4e1e; }
+  .p-adbl  { background:#0e1e3e; color:var(--blue);   border:1px solid #1e3e5e; }
+  .p-gob   { background:#2e1e0e; color:var(--yellow); border:1px solid #4e3e1e; }
+  .p-gnc   { background:#1e0e2e; color:var(--purple); border:1px solid #3e1e4e; }
+  .p-24h   { background:#1a1a1a; color:var(--muted);  border:1px solid var(--border); }
+  .p-sh    { background:#0e2a2a; color:#2dd4bf;        border:1px solid #1e4a4a; }
+
+  .btn-ruta {
+    background:var(--red); border:none; color:#fff;
+    font-family:'Barlow Condensed',sans-serif; font-weight:700;
+    font-size:10px; letter-spacing:1px; text-transform:uppercase;
+    padding:5px 8px; border-radius:4px; cursor:pointer;
+    white-space:nowrap; text-decoration:none; flex-shrink:0;
+    transition:background 0.15s; display:inline-block;
+  }
+  .btn-ruta:hover { background:#bf0018; }
+
+  /* ── MAP CONTAINER ── */
+  #mapWrap {
+    flex: 1;
+    height: 100%;
+    position: relative;
+  }
+  #leafletMap {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ── LEAFLET POPUP ── */
+  .leaflet-popup-content-wrapper {
+    background:#141414 !important; border:1px solid #303030 !important;
+    border-radius:8px !important; box-shadow:0 8px 40px rgba(0,0,0,0.9) !important;
+    padding:0 !important; overflow:hidden;
+  }
+  .leaflet-popup-tip { background:#141414 !important; }
+  .leaflet-popup-content { margin:0 !important; width:250px !important; }
+
+  .popup-head { background:var(--red); padding:10px 14px 8px; }
+  .popup-head h3 { font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:15px; color:#fff; line-height:1.1; }
+  .popup-head p { font-size:10px; color:rgba(255,255,255,0.7); letter-spacing:1.5px; text-transform:uppercase; margin-top:2px; }
+  .popup-body { padding:10px 14px 12px; }
+  .popup-addr { font-size:11px; color:var(--muted); margin-bottom:9px; line-height:1.4; }
+  .popup-svcs { display:flex; gap:3px; flex-wrap:wrap; margin-bottom:11px; }
+  .popup-btn-main {
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    width:100%; padding:10px; background:var(--red); color:#fff;
+    font-family:'Barlow Condensed',sans-serif; font-weight:700;
+    font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    border:none; border-radius:5px; cursor:pointer; text-decoration:none;
+    transition:background 0.15s; margin-bottom:6px;
+  }
+  .popup-btn-main:hover { background:#bf0018; color:#fff; }
+  .popup-btn-sec {
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    width:100%; padding:7px; background:transparent; color:var(--muted);
+    border:1px solid var(--border); border-radius:5px;
+    font-family:'Barlow Condensed',sans-serif; font-weight:600;
+    font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    cursor:pointer; text-decoration:none; transition:all 0.15s;
+  }
+  .popup-btn-sec:hover { background:#1e1e1e; color:var(--text); }
+
+  /* ── FINDER VIEW ── */
+  #finderView {
+    flex-direction: column;
+    background: #0a0a0a;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    gap: 18px;
+    overflow-y: auto;
+  }
+  .finder-icon { font-size:60px; line-height:1; }
+  .finder-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:26px; letter-spacing:1px; }
+  .finder-sub { font-size:14px; color:var(--muted); max-width:480px; line-height:1.6; }
+  .open-btn {
+    background:var(--red); color:#fff;
+    font-family:'Barlow Condensed',sans-serif; font-weight:700;
+    font-size:15px; letter-spacing:2px; text-transform:uppercase;
+    border:none; padding:14px 32px; border-radius:6px;
+    cursor:pointer; text-decoration:none; transition:background 0.15s;
+    display:inline-flex; align-items:center; gap:10px;
+  }
+  .open-btn:hover { background:#bf0018; color:#fff; }
+  .app-btns { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .app-btn {
+    background:#1e1e1e; color:var(--text); border:1px solid var(--border);
+    font-family:'Barlow Condensed',sans-serif; font-weight:700;
+    font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:10px 20px; border-radius:6px; cursor:pointer;
+    text-decoration:none; transition:all 0.15s;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .app-btn:hover { background:#2e2e2e; border-color:#555; }
+  .finder-cards { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .fcard {
+    background:#181818; border:1px solid var(--border); border-radius:8px;
+    padding:14px 18px; font-size:12px; color:var(--muted);
+    width:190px; text-align:left; line-height:1.5;
+  }
+  .fcard-icon { font-size:24px; margin-bottom:6px; }
+  .fcard strong { color:var(--text); display:block; font-size:13px; font-family:'Barlow Condensed',sans-serif; letter-spacing:0.5px; margin-bottom:2px; }
+
+  .no-res { padding:40px 20px; text-align:center; color:var(--muted); font-size:13px; }
+
+  @media (max-width:640px) {
+    #sidebar { width:100%; position:absolute; top:0; left:0; right:0; bottom:0; z-index:500; transform:translateX(-100%); transition:transform 0.3s; }
+    #sidebar.open { transform:translateX(0); }
+    .hstats { display:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div class="logo">
+      <div class="logo-badge">AS24</div>
+      <div>
+        <div class="logo-title">Gasolineras Camiones</div>
+        <div class="logo-sub">Red europea · 24/7</div>
+      </div>
+    </div>
+    <div class="view-tabs">
+      <button class="tab-btn active" id="tabMap" onclick="switchView('map')">🗺️ Mapa</button>
+      <button class="tab-btn" id="tabFinder" onclick="switchView('finder')">🔍 Buscador Oficial</button>
+    </div>
+    <div class="hstats">
+      <div class="stat"><div class="stat-num" id="hCount">51</div><div class="stat-lbl">España</div></div>
+      <div class="hdiv"></div>
+      <div class="stat"><div class="stat-num">1800+</div><div class="stat-lbl">Europa</div></div>
+      <div class="hdiv"></div>
+      <div class="stat"><div class="stat-num" style="color:var(--green)">●</div><div class="stat-lbl">24/7</div></div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- MAP VIEW -->
+    <div id="mapView" class="view active">
+      <div id="sidebar">
+        <div class="search-wrap">
+          <div class="sbox">
+            <input type="text" id="searchQ" placeholder="Buscar ciudad, carretera...">
+            <span class="sbox-icon">⌕</span>
+          </div>
+          <div class="chips">
+            <span class="chip active" data-f="all">Todas</span>
+            <span class="chip" data-f="AdBlue">AdBlue</span>
+            <span class="chip" data-f="GO-B">Gasóleo B</span>
+            <span class="chip" data-f="GNC">GNC</span>
+            <span class="chip" data-f="Duchas">Duchas</span>
+          </div>
+        </div>
+        <div class="list-head">
+          <span>Estaciones en España</span>
+          <span class="cbadge" id="sCount">51</span>
+        </div>
+        <div id="stList"></div>
+      </div>
+      <div id="mapWrap">
+        <div id="leafletMap"></div>
+      </div>
+    </div>
+
+    <!-- FINDER VIEW -->
+    <div id="finderView" class="view">
+      <div class="finder-icon">⛽</div>
+      <div class="finder-title">Buscador Oficial de Estaciones AS24</div>
+      <div class="finder-sub">
+        El buscador oficial de AS24 tiene todas las estaciones de Europa en tiempo real, con estado de apertura, productos disponibles y coordenadas GPS exactas. Ábrelo en tu navegador para localización automática.
+      </div>
+      <a class="open-btn" href="https://network.as24.com/stationfinder/" target="_blank">
+        🌐 Abrir Buscador AS24
+      </a>
+      <div class="app-btns">
+        <a class="app-btn" href="https://play.google.com/store/apps/details?id=io.cordova.AS24AppDriver" target="_blank">📱 App Android</a>
+        <a class="app-btn" href="https://apps.apple.com/app/as-24-driver/id932572001" target="_blank">🍎 App iOS</a>
+      </div>
+      <div class="finder-cards">
+        <div class="fcard"><div class="fcard-icon">📍</div><strong>GPS en tiempo real</strong>Detecta tu posición y muestra las estaciones más cercanas.</div>
+        <div class="fcard"><div class="fcard-icon">⚡</div><strong>Estado actualizado</strong>Aperturas, cierres y disponibilidad de combustibles al momento.</div>
+        <div class="fcard"><div class="fcard-icon">🇪🇺</div><strong>29 países</strong>Más de 1800 estaciones propias y 12000 colaboradoras en Europa.</div>
+        <div class="fcard"><div class="fcard-icon">🗺️</div><strong>Ruta directa</strong>Calcula la ruta desde tu ubicación a cualquier estación AS24.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  DATOS
+// ════════════════════════════════════════════════
+var STATIONS = [
+  {id:1,  name:"AS24 Montornès del Vallès",    region:"Barcelona",   addr:"C-17, Pol. Can Prunera, Montornès del Vallès",    lat:41.5530, lng:2.2980,  svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:2,  name:"AS24 Mollet del Vallès",       region:"Barcelona",   addr:"Pol. Ind. Sud, Avda. de la Llana, Mollet",        lat:41.5370, lng:2.2150,  svcs:["GO","AdBlue","24h"]},
+  {id:3,  name:"AS24 Sant Boi de Llobregat",   region:"Barcelona",   addr:"Ctra. C-245 km 12, Sant Boi",                     lat:41.3420, lng:2.0420,  svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:4,  name:"AS24 Tarragona",               region:"Tarragona",   addr:"Autovia A-7 salida 37, Les Gavarres",             lat:41.1390, lng:1.3660,  svcs:["GO","AdBlue","GO-B","Duchas","24h"]},
+  {id:5,  name:"AS24 Mataró",                  region:"Barcelona",   addr:"Pol. Ind. Mata-Rocafonda, Mataró",                lat:41.5360, lng:2.4490,  svcs:["GO","AdBlue","24h"]},
+  {id:6,  name:"AS24 Girona – Fornells",       region:"Girona",      addr:"N-II km 723, Fornells de la Selva",               lat:41.9160, lng:2.8500,  svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:7,  name:"AS24 Zaragoza – PLAZA",        region:"Zaragoza",    addr:"Plataforma Logística PLAZA, A-2, Zaragoza",       lat:41.6760, lng:-0.8720, svcs:["GO","AdBlue","GO-B","Duchas","24h"]},
+  {id:8,  name:"AS24 Zaragoza – Malpica",      region:"Zaragoza",    addr:"Pol. Ind. Malpica, Av. Cataluña, Zaragoza",       lat:41.6620, lng:-0.9340, svcs:["GO","AdBlue","24h"]},
+  {id:9,  name:"AS24 Alfajarín",               region:"Zaragoza",    addr:"N-II km 341, Alfajarín",                          lat:41.6040, lng:-0.7610, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:10, name:"AS24 Fraga",                   region:"Huesca",      addr:"N-II km 437, Fraga",                              lat:41.5230, lng:0.3500,  svcs:["GO","AdBlue","24h"]},
+  {id:11, name:"AS24 Coslada",                 region:"Madrid",      addr:"Pol. Ind. Las Mercedes, Coslada",                 lat:40.4360, lng:-3.5590, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:12, name:"AS24 Getafe",                  region:"Madrid",      addr:"Pol. Ind. Los Olivos, Av. Bruselas, Getafe",      lat:40.2990, lng:-3.7310, svcs:["GO","AdBlue","24h"]},
+  {id:13, name:"AS24 San Fernando de Henares", region:"Madrid",      addr:"Pol. Ind. Henares III, San Fernando de Henares",  lat:40.4320, lng:-3.5150, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:14, name:"AS24 Arganda del Rey",         region:"Madrid",      addr:"Pol. Ind. Los Gavilanes, Arganda del Rey",        lat:40.3000, lng:-3.4430, svcs:["GO","AdBlue","24h"]},
+  {id:15, name:"AS24 Valencia – Riba-roja",    region:"Valencia",    addr:"Pol. Ind. Riba-roja de Túria, Valencia",          lat:39.5400, lng:-0.5550, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:16, name:"AS24 Valencia – A-3",          region:"Valencia",    addr:"A-3 km 348, Valencia",                            lat:39.4280, lng:-0.4960, svcs:["GO","AdBlue","GO-B","Duchas","24h"]},
+  {id:17, name:"AS24 Alicante – San Vicente",  region:"Alicante",    addr:"Pol. Ind. San Vicente del Raspeig",               lat:38.4100, lng:-0.5390, svcs:["GO","AdBlue","24h"]},
+  {id:18, name:"AS24 Sagunto",                 region:"Valencia",    addr:"Pol. Ind. Puerto de Sagunto, Valencia",           lat:39.6700, lng:-0.2070, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:19, name:"AS24 Huelva",                  region:"Huelva",      addr:"Pol. Ind. El Manchón, Huelva",                    lat:37.2690, lng:-6.9130, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:20, name:"AS24 Sevilla – Alcalá",        region:"Sevilla",     addr:"Pol. Ind. Los Olivares, Alcalá de Guadaíra",      lat:37.3360, lng:-5.8270, svcs:["GO","AdBlue","24h"]},
+  {id:21, name:"AS24 Málaga – Antequera",      region:"Málaga",      addr:"Pol. Ind. Los Llanos, Antequera",                 lat:37.0190, lng:-4.5720, svcs:["GO","AdBlue","24h"]},
+  {id:22, name:"AS24 Córdoba",                 region:"Córdoba",     addr:"Pol. Ind. Torrecilla, Córdoba",                   lat:37.8850, lng:-4.7750, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:23, name:"AS24 Granada",                 region:"Granada",     addr:"A-92 km 194, Lancha del Genil",                   lat:37.1830, lng:-3.5980, svcs:["GO","AdBlue","24h"]},
+  {id:24, name:"AS24 Almería",                 region:"Almería",     addr:"Pol. Ind. El Puche, Almería",                     lat:36.8700, lng:-2.3620, svcs:["GO","AdBlue","24h"]},
+  {id:25, name:"AS24 Benavente",               region:"Zamora",      addr:"A-6 salida 261, Cañada Real, Benavente",          lat:42.0010, lng:-5.6660, svcs:["GO","AdBlue","Duchas","24h"]},
+  {id:26, name:"AS24 Valladolid – Arroyo",     region:"Valladolid",  addr:"Pol. Ind. Argales, Arroyo de la Encomienda",      lat:41.6270, lng:-4.7800, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:27, name:"AS24 Burgos",                  region:"Burgos",      addr:"Pol. Ind. Gamonal, Burgos",                       lat:42.3560, lng:-3.6750, svcs:["GO","AdBlue","24h"]},
+  {id:28, name:"AS24 León",                    region:"León",        addr:"Pol. Ind. El Montico, León",                      lat:42.5800, lng:-5.5760, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:29, name:"AS24 Salamanca",               region:"Salamanca",   addr:"Pol. Ind. Montalvo II, Salamanca",                lat:40.9290, lng:-5.6440, svcs:["GO","AdBlue","24h"]},
+  {id:30, name:"AS24 Ponferrada",              region:"León",        addr:"Pol. Ind. Cantalobos, Ponferrada",                lat:42.5480, lng:-6.5930, svcs:["GO","AdBlue","GO-B","Duchas","24h"]},
+  {id:31, name:"AS24 Azuqueca de Henares",     region:"Guadalajara", addr:"Pol. Corredor del Henares, Azuqueca",             lat:40.5620, lng:-3.2640, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:32, name:"AS24 Albacete",                region:"Albacete",    addr:"Pol. Ind. Campollano, Albacete",                  lat:38.9580, lng:-1.8430, svcs:["GO","AdBlue","24h"]},
+  {id:33, name:"AS24 Talavera de la Reina",    region:"Toledo",      addr:"Pol. Ind. El Bercial, Talavera de la Reina",      lat:39.9580, lng:-4.8250, svcs:["GO","AdBlue","24h"]},
+  {id:34, name:"AS24 Badajoz – Balboa",        region:"Badajoz",     addr:"A-5 km 392, Balboa",                              lat:38.9130, lng:-6.8980, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:35, name:"AS24 Mérida",                  region:"Badajoz",     addr:"Pol. Ind. El Prado, Mérida",                      lat:38.9130, lng:-6.3460, svcs:["GO","AdBlue","24h"]},
+  {id:36, name:"AS24 Vigo – O Porriño",        region:"Pontevedra",  addr:"Pol. Ind. A Granxa, O Porriño",                   lat:42.1580, lng:-8.6140, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:37, name:"AS24 A Coruña – Arteixo",      region:"A Coruña",    addr:"Pol. Ind. Sabón, Arteixo",                        lat:43.3150, lng:-8.5090, svcs:["GO","AdBlue","24h"]},
+  {id:38, name:"AS24 Lugo",                    region:"Lugo",        addr:"Pol. Ind. O Ceao, Lugo",                          lat:43.0020, lng:-7.5770, svcs:["GO","AdBlue","24h"]},
+  {id:39, name:"AS24 Vitoria-Gasteiz",         region:"Álava",       addr:"Pol. Ind. Júndiz, Vitoria-Gasteiz",               lat:42.8500, lng:-2.7340, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:40, name:"AS24 Bilbao – Etxebarri",      region:"Bizkaia",     addr:"Pol. Ind. Etxebarri, Bizkaia",                    lat:43.2730, lng:-2.8900, svcs:["GO","AdBlue","24h"]},
+  {id:41, name:"AS24 Irún",                    region:"Gipuzkoa",    addr:"Pol. Ind. Artaleku, Irún",                        lat:43.3320, lng:-1.8050, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:42, name:"AS24 Pamplona – Noáin",        region:"Navarra",     addr:"Pol. Ind. Comarca II, Noáin",                     lat:42.7430, lng:-1.6380, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:43, name:"AS24 Logroño",                 region:"La Rioja",    addr:"Pol. Ind. La Portalada II, Logroño",              lat:42.4650, lng:-2.4430, svcs:["GO","AdBlue","24h"]},
+  {id:44, name:"AS24 Cartagena – Cabezo Beaza",region:"Murcia",      addr:"Pol. Ind. Cabezo Beaza, Cartagena",               lat:37.6210, lng:-0.9750, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:45, name:"AS24 Lorca",                   region:"Murcia",      addr:"Pol. Ind. Saprelorca, Lorca",                     lat:37.6790, lng:-1.6950, svcs:["GO","AdBlue","24h"]},
+  {id:46, name:"AS24 Santander",               region:"Cantabria",   addr:"Pol. Ind. Nueva Montaña, Santander",              lat:43.4560, lng:-3.7940, svcs:["GO","AdBlue","24h"]},
+  {id:47, name:"AS24 Oviedo – Llanera",        region:"Asturias",    addr:"Pol. Ind. Silvota, Llanera",                      lat:43.4250, lng:-5.8620, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:48, name:"AS24 Gijón – Roces",           region:"Asturias",    addr:"Pol. Ind. Roces, Gijón",                          lat:43.5340, lng:-5.6770, svcs:["GO","AdBlue","24h"]},
+  {id:49, name:"AS24 Palma – Son Castelló",    region:"Mallorca",    addr:"Pol. Ind. Son Castelló, Palma de Mallorca",       lat:39.6200, lng:2.6560,  svcs:["GO","AdBlue","24h"]},
+  {id:50, name:"AS24 Castellón – Almassora",   region:"Castellón",   addr:"A-7 Castellón Sur, Almassora",                    lat:39.9410, lng:-0.0600, svcs:["GO","AdBlue","GO-B","24h"]},
+  {id:51, name:"AS24 Tordesillas",             region:"Valladolid",  addr:"A-62 km 155, Tordesillas",                        lat:41.5040, lng:-5.0030, svcs:["GO","AdBlue","GO-B","24h"]}
+];
+
+// ════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════
+var PILL_MAP = {
+  'GO':    ['p-go',  'Gasóleo'],
+  'AdBlue':['p-adbl','AdBlue'],
+  'GO-B':  ['p-gob', 'Gasóleo B'],
+  'GNC':   ['p-gnc', 'GNC'],
+  'Duchas':['p-sh',  '🚿'],
+  '24h':   ['p-24h', '24H']
+};
+function pill(s) {
+  var m = PILL_MAP[s] || ['p-24h', s];
+  return '<span class="pill ' + m[0] + '">' + m[1] + '</span>';
+}
+function gmUrl(lat, lng) {
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=driving';
+}
+
+// ════════════════════════════════════════════════
+//  MAPA — init después de que DOM esté listo
+// ════════════════════════════════════════════════
+var lmap, markers = {}, activeId = null;
+
+function initMap() {
+  var mapEl = document.getElementById('leafletMap');
+  if (!mapEl) return;
+
+  lmap = L.map('leafletMap', {
+    center: [40.4, -3.7],
+    zoom: 6,
+    zoomControl: false,
+    preferCanvas: true
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(lmap);
+
+  L.control.zoom({ position: 'topright' }).addTo(lmap);
+
+  STATIONS.forEach(function(s) {
+    var m = L.marker([s.lat, s.lng], { icon: mkIcon(false) }).addTo(lmap);
+    var popHtml =
+      '<div class="popup-head"><h3>' + s.name + '</h3><p>' + s.region + '</p></div>' +
+      '<div class="popup-body">' +
+        '<div class="popup-addr">📍 ' + s.addr + '</div>' +
+        '<div class="popup-svcs">' + s.svcs.map(pill).join('') + '</div>' +
+        '<a class="popup-btn-main" href="' + gmUrl(s.lat, s.lng) + '" target="_blank">🗺️ Abrir ruta en Google Maps</a>' +
+        '<a class="popup-btn-sec" href="https://www.google.com/maps/search/?api=1&query=' + s.lat + ',' + s.lng + '" target="_blank">📌 Ver en el mapa</a>' +
+      '</div>';
+    m.bindPopup(popHtml, { minWidth: 250, maxWidth: 250 });
+    m.on('click', function() { setActive(s.id); scrollCard(s.id); });
+    markers[s.id] = m;
+  });
+}
+
+function mkIcon(active) {
+  var c = active ? '#ff2a3a' : '#e8001d';
+  var b = active ? '#ffffff' : 'rgba(255,255,255,0.4)';
+  var sh = active ? '0 0 14px rgba(255,40,55,0.9)' : '0 2px 8px rgba(232,0,29,0.5)';
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:26px;height:26px;background:' + c + ';border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid ' + b + ';box-shadow:' + sh + ';display:flex;align-items:center;justify-content:center;"><span style="transform:rotate(45deg);font-size:11px;display:block;">⛽</span></div>',
+    iconSize: [26, 26],
+    iconAnchor: [13, 26],
+    popupAnchor: [0, -28]
+  });
+}
+
+function setActive(id) {
+  if (activeId && markers[activeId]) markers[activeId].setIcon(mkIcon(false));
+  activeId = id;
+  if (markers[id]) markers[id].setIcon(mkIcon(true));
+  document.querySelectorAll('.scard').forEach(function(c) { c.classList.remove('active'); });
+  var card = document.getElementById('sc-' + id);
+  if (card) card.classList.add('active');
+}
+
+function scrollCard(id) {
+  var c = document.getElementById('sc-' + id);
+  if (c) c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function flyTo(id) {
+  var s = STATIONS.find(function(x) { return x.id === id; });
+  if (!s) return;
+  if (lmap) {
+    lmap.flyTo([s.lat, s.lng], 14, { duration: 1.2 });
+    setTimeout(function() { if (markers[id]) markers[id].openPopup(); }, 1250);
+  }
+  setActive(id);
+}
+
+// ════════════════════════════════════════════════
+//  LISTA
+// ════════════════════════════════════════════════
+var fFilter = 'all', fSearch = '';
+
+function renderList(data) {
+  document.getElementById('sCount').textContent = data.length;
+  document.getElementById('hCount').textContent = data.length;
+  var el = document.getElementById('stList');
+  if (!data.length) {
+    el.innerHTML = '<div class="no-res">No se encontraron estaciones</div>';
+    return;
+  }
+  el.innerHTML = data.map(function(s) {
+    return '<div class="scard" id="sc-' + s.id + '" onclick="flyTo(' + s.id + ')">' +
+      '<div class="scard-ico"><span>⛽</span></div>' +
+      '<div class="scard-body">' +
+        '<div class="scard-name">' + s.name + '</div>' +
+        '<div class="scard-reg">📍 ' + s.region + '</div>' +
+        '<div class="scard-pills">' + s.svcs.slice(0, 3).map(pill).join('') + '</div>' +
+      '</div>' +
+      '<a class="btn-ruta" href="' + gmUrl(s.lat, s.lng) + '" target="_blank" onclick="event.stopPropagation()">Ruta</a>' +
+    '</div>';
+  }).join('');
+}
+
+function applyFilters() {
+  var data = STATIONS;
+  if (fSearch.trim()) {
+    var q = fSearch.toLowerCase();
+    data = data.filter(function(s) {
+      return s.name.toLowerCase().indexOf(q) > -1 ||
+             s.region.toLowerCase().indexOf(q) > -1 ||
+             s.addr.toLowerCase().indexOf(q) > -1;
+    });
+  }
+  if (fFilter !== 'all') {
+    data = data.filter(function(s) { return s.svcs.indexOf(fFilter) > -1; });
+  }
+  if (lmap) {
+    STATIONS.forEach(function(s) {
+      var vis = data.some(function(x) { return x.id === s.id; });
+      if (vis && !lmap.hasLayer(markers[s.id])) markers[s.id].addTo(lmap);
+      if (!vis && lmap.hasLayer(markers[s.id])) lmap.removeLayer(markers[s.id]);
+    });
+  }
+  renderList(data);
+}
+
+document.getElementById('searchQ').addEventListener('input', function(e) {
+  fSearch = e.target.value;
+  applyFilters();
+});
+
+document.querySelectorAll('.chip').forEach(function(c) {
+  c.addEventListener('click', function() {
+    document.querySelectorAll('.chip').forEach(function(x) { x.classList.remove('active'); });
+    c.classList.add('active');
+    fFilter = c.dataset.f;
+    applyFilters();
+  });
+});
+
+// ════════════════════════════════════════════════
+//  VIEW SWITCHER
+// ════════════════════════════════════════════════
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(function(x) { x.classList.remove('active'); });
+  document.getElementById('tabMap').classList.remove('active');
+  document.getElementById('tabFinder').classList.remove('active');
+
+  if (v === 'map') {
+    document.getElementById('mapView').classList.add('active');
+    document.getElementById('tabMap').classList.add('active');
+    if (lmap) {
+      setTimeout(function() { lmap.invalidateSize(); }, 150);
+    }
+  } else {
+    document.getElementById('finderView').classList.add('active');
+    document.getElementById('tabFinder').classList.add('active');
+  }
+}
+
+// ════════════════════════════════════════════════
+//  ARRANQUE — esperar a que todo el DOM cargue
+// ════════════════════════════════════════════════
+window.addEventListener('load', function() {
+  renderList(STATIONS);
+  initMap();
+});
+</script>
+</body>
+</html>
