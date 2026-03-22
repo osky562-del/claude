@@ -24,11 +24,10 @@
   --f:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
   --tab:64px;--st:env(safe-area-inset-top,44px);--sb:env(safe-area-inset-bottom,20px);
   --r:12px;--r2:8px;
-  --fs:1;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;background:var(--bg);}
-body{font-family:var(--f);color:var(--t1);-webkit-font-smoothing:antialiased;font-size:calc(15px * var(--fs));}
+body{font-family:var(--f);color:var(--t1);-webkit-font-smoothing:antialiased;}
 ::-webkit-scrollbar{width:0;}
 input,select,button{font-family:var(--f);}
 
@@ -1055,20 +1054,21 @@ function renderProfile(){
 $('btnSaveW').addEventListener('click',()=>{const w=parseFloat($('bwInput').value);if(!w||w<20||w>300)return toast('Peso inválido','err');const d=new Date().toISOString().split('T')[0];const idx=weightLogs.findIndex(l=>l.date===d);if(idx>=0)weightLogs[idx].weight=w;else weightLogs.push({date:d,weight:w});saveWeights();toast('Peso guardado ✓','good');$('bwInput').value='';});
 
 /* ══ FONT SIZE ══ */
-const FS_STEPS = [1, 1.15, 1.3, 1.5, 1.7, 2.0];
-const FS_LABELS = ['A', 'A+', 'A++', 'A+++', 'A++++', 'A+++++'];
+const FS_PX  = [14, 16, 19, 22, 26, 30];
+const FS_LBL = ['A','A+','A++','A+++','A++++','A+++++'];
 let fsIdx = parseInt(localStorage.getItem('ko95_fs') || '0');
+if (isNaN(fsIdx) || fsIdx < 0 || fsIdx >= FS_PX.length) fsIdx = 0;
 
 function applyFontSize() {
-  document.documentElement.style.setProperty('--fs', FS_STEPS[fsIdx]);
+  document.documentElement.style.fontSize = FS_PX[fsIdx] + 'px';
   const btn = document.getElementById('tbFsBtn');
-  if (btn) btn.textContent = FS_LABELS[fsIdx];
+  if (btn) btn.textContent = FS_LBL[fsIdx];
 }
 function cycleFontSize() {
-  fsIdx = (fsIdx + 1) % FS_STEPS.length;
-  localStorage.setItem('ko95_fs', fsIdx);
+  fsIdx = (fsIdx + 1) % FS_PX.length;
+  localStorage.setItem('ko95_fs', String(fsIdx));
   applyFontSize();
-  toast('Tamaño ' + FS_LABELS[fsIdx]);
+  toast('Texto ' + FS_LBL[fsIdx]);
 }
 applyFontSize();
 
