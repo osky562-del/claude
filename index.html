@@ -22,7 +22,7 @@
   --gold:#ffd700;
   --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.18);
   --f:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
-  --tab:64px;--st:env(safe-area-inset-top,44px);--sb:env(safe-area-inset-bottom,20px);
+  --tab:80px;--st:env(safe-area-inset-top,44px);--sb:env(safe-area-inset-bottom,20px);
   --r:12px;--r2:8px;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -69,11 +69,11 @@ input,select,button{font-family:var(--f);}
 
 /* TABBAR */
 .tabbar{height:var(--tab);padding-bottom:var(--sb);background:rgba(10,10,10,.96);backdrop-filter:blur(20px);border-top:1px solid var(--line);display:flex;flex-shrink:0;z-index:100;}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;color:var(--t3);transition:color .2s;padding-top:4px;position:relative;}
-.tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;}
-.tab span{font-size:.52rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--t3);transition:color .2s;padding-top:6px;position:relative;}
+.tab svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;}
+.tab span{font-size:.65rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;}
 .tab.on{color:var(--a);}
-.tab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:20px;height:2px;background:var(--a);border-radius:0 0 2px 2px;box-shadow:0 0 8px rgba(79,140,255,.7);}
+.tab.on::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:32px;height:2px;background:var(--a);border-radius:0 0 2px 2px;box-shadow:0 0 10px rgba(79,140,255,.7);}
 
 /* SCROLL / PAGES */
 .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 13px calc(var(--tab) + 14px);-webkit-overflow-scrolling:touch;}
@@ -515,7 +515,7 @@ input,select,button{font-family:var(--f);}
     <div class="page on" id="pageDash">
       <div class="hero">
         <div class="hero-greet" id="greetDate">—</div>
-        <div class="hero-name">Hola, <em id="greetName">Atleta</em></div>
+        <div class="hero-name">Hola, <em id="greetName">Atleta</em> 👋</div>
         <div class="xp-wrap"><div class="xp-top"><div class="xp-lv"><div class="xp-badge" id="xpBadge">Nv.1</div><div class="xp-lv-title" id="xpTitle">Novato</div></div><div class="xp-pts" id="xpPts">0 / 500 XP</div></div><div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div></div>
         <div class="streak-row"><div class="streak-chip"><span class="sn" id="strN">0</span><span class="sl">días 🔥</span></div><span class="sm">Mejor: <strong id="strMax">0</strong></span></div>
         <div class="week-strip" id="weekStrip"></div>
@@ -597,6 +597,12 @@ input,select,button{font-family:var(--f);}
           <div class="ps"><div class="ps-v" id="psH">0h</div><div class="ps-l">Entrenadas</div></div>
         </div>
       </div>
+      <div class="sec">Tu nombre</div>
+      <div class="inp-row" style="margin-bottom:9px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <input type="text" id="nameInput" placeholder="¿Cómo te llamas?" maxlength="30" style="text-transform:capitalize;">
+        <button class="btn-g" style="padding:8px 14px;font-size:.8rem;" onclick="saveName()">Guardar</button>
+      </div>
       <div class="sec">Peso corporal</div>
       <div class="inp-row" style="margin-bottom:9px;">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -618,8 +624,8 @@ input,select,button{font-family:var(--f);}
     <button class="tab on" id="t-dash" onclick="goPage('dash')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Inicio</span></button>
     <button class="tab" id="t-add" onclick="openPlan()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Entreno</span></button>
     <button class="tab" id="t-awards" onclick="goPage('awards')"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span>Premios</span></button>
-    <button class="tab" id="t-prog" onclick="goPage('prog')"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Progreso</span></button>
-    <button class="tab" id="t-hist" onclick="goPage('hist')"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Historial</span></button>
+    <button class="tab" id="t-prog" onclick="goPage('prog')"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Stats</span></button>
+    <button class="tab" id="t-hist" onclick="goPage('hist')"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg><span>Historial</span></button>
     <button class="tab" id="t-profile" onclick="goPage('profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Perfil</span></button>
   </div>
 </div>
@@ -1018,6 +1024,7 @@ function finishLive(){
 
 /* ══ DASHBOARD ══ */
 function renderDash(){
+  updateGreeting();
   const now=new Date();
   $('greetDate').textContent=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][now.getDay()]+', '+now.toLocaleDateString('es-ES',{day:'numeric',month:'long'});
   $('strN').textContent=calcStreak();$('strMax').textContent=calcMaxStreak();
@@ -1140,7 +1147,22 @@ $('cancelDel').addEventListener('click',()=>closeSheet('shDel'));
 $('confirmDel').addEventListener('click',()=>{if(delId){workouts=workouts.filter(w=>w.id!==delId);saveWorkouts();renderHist();renderDash();toast('Sesión eliminada');}closeSheet('shDel');});
 
 /* ══ PROFILE ══ */
+function getUserName(){ return STORE.get('name') || ''; }
+function saveName(){
+  const n = $('nameInput').value.trim();
+  if(!n) return toast('Escribe tu nombre','err');
+  STORE.set('name', n);
+  updateGreeting();
+  toast('¡Hola, '+n+'! 👋','good');
+}
+function updateGreeting(){
+  const n = getUserName();
+  $('greetName').textContent = n || 'Atleta';
+}
 function renderProfile(){
+  // Load saved name into input
+  const n = getUserName();
+  if($('nameInput')) $('nameInput').value = n;
   let tv=0,th=0,sr=0,rc=0;workouts.forEach(w=>{(w.exercises||[]).forEach(e=>tv+=(+e.kg||0)*(+e.sets||1)*(+e.reps||1));if(w.duration)th+=+w.duration;if(w.rpe){sr+=+w.rpe;rc++;}});
   $('psW').textContent=workouts.length;$('psK').textContent=big(tv);$('psS').textContent=calcMaxStreak();$('psH').textContent=Math.round(th/60)+'h';
   $('irS').textContent=workouts.length;$('irK').textContent=big(tv)+' kg';$('irH').textContent=Math.round(th/60)+'h';$('irR').textContent=rc?(sr/rc).toFixed(1):'—';
@@ -1217,6 +1239,7 @@ function doImport(e) {
 
 
 /* ══ INIT ══ */
+updateGreeting();
 renderDash();
 updateXpBar();
 </script>
