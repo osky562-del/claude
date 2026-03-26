@@ -1080,7 +1080,11 @@ input,select,button{font-family:var(--f);}
   <div class="plan-scroll">
     <div class="plan-meta">
       <div class="pm-chip" style="flex:1.2"><div class="pm-l">Fecha</div><input class="pm-i" type="date" id="planDate"></div>
-      <div class="pm-chip"><div class="pm-l">RPE</div><input class="pm-i" type="number" id="planRpe" placeholder="7" min="1" max="10"></div>
+      <div class="pm-chip" id="rpeChip" style="cursor:pointer;position:relative;" onclick="toggleRpeMode()">
+  <div class="pm-l">RPE <span id="rpeModeLabel" style="color:var(--a);font-size:.5rem;font-weight:800;letter-spacing:.06em;">AUTO</span></div>
+  <div id="rpeAutoDisplay" style="font-size:.9rem;font-weight:700;color:var(--a);">—</div>
+  <input class="pm-i" type="number" id="planRpe" placeholder="auto" min="1" max="10" style="display:none;width:60px;">
+</div>
       <div class="pm-chip" style="flex:2"><div class="pm-l">Notas</div><input class="pm-i" type="text" id="planNotes" placeholder="¿Cómo te sientes?"></div>
     </div>
     <div class="plan-search-wrap">
@@ -1315,7 +1319,11 @@ function goPage(p){
 function openPlan(){
   planExs=[];
   $('planDate').value=new Date().toISOString().split('T')[0];
-  $('planRpe').value='';$('planNotes').value='';$('planSearch').value='';
+  $('planRpe').value='';$('planNotes').value='';
+  rpeMode='auto';
+  if($('rpeModeLabel')){$('rpeModeLabel').textContent='AUTO';$('rpeModeLabel').style.color='var(--a)';}
+  if($('rpeAutoDisplay')){$('rpeAutoDisplay').style.display='';$('rpeAutoDisplay').textContent='—';}
+  if($('planRpe')){$('planRpe').style.display='none';}$('planSearch').value='';
   $('planAC').classList.remove('show');
   renderPlanList();
   $('planMode').classList.add('show');
@@ -1438,7 +1446,8 @@ function renderLiveEx(){
 function updVol(si){const s=liveExs[liveIdx].sets[si];const v=+s.kg&&+s.reps?Math.round(+s.kg*+s.reps):null;const el=$('lsv'+si);if(el){el.textContent=v||'—';el.className='lv-set-vol'+(v?' has':'');}updateLvStats();}
 function toggleSet(si){
   const ex=liveExs[liveIdx],s=ex.sets[si];s.done=!s.done;
-  if(s.done){vib([60]);showXpFloat(XP.series);const kg=+s.kg||0,pr=getPR(ex.name);if(kg>0&&kg>pr)showPR(ex.name,kg);if(ex.restSec)startRest(ex.restSec,ex.sets.every(x=>x.done)?'Descansa antes del siguiente':'Prepárate para la siguiente serie');}
+  if(s.done){
+    setTimeout(updateAutoRpe, 50);vib([60]);showXpFloat(XP.series);const kg=+s.kg||0,pr=getPR(ex.name);if(kg>0&&kg>pr)showPR(ex.name,kg);if(ex.restSec)startRest(ex.restSec,ex.sets.every(x=>x.done)?'Descansa antes del siguiente':'Prepárate para la siguiente serie');}
   renderLiveEx();
 }
 function updateLvStats(){
@@ -1455,7 +1464,7 @@ function finishLive(){
   if(pct<100&&!confirm(`Has completado el ${pct}% (${done}/${total} series). ¿Finalizar?`))return;
   clearInterval(liveTotalInt);clearInterval(livePauseInt);stopRest();
   const exercises=liveExs.map(ex=>({ex:ex.name,kg:String(Math.max(...ex.sets.map(s=>+s.kg||0))||''),sets:ex.sets.length,reps:ex.sets[0]?.reps||10,setsDetail:ex.sets.map(s=>({kg:s.kg||'',reps:s.reps,done:!!s.done}))}));
-  const wk={id:uid(),date:$('planDate').value||new Date().toISOString().split('T')[0],duration:liveTotalSec?Math.round(liveTotalSec/60):'',pauseDuration:livePauseSec?Math.round(livePauseSec/60):'',pauseCount:livePauseCnt,rpe:$('planRpe').value||'',notes:$('planNotes').value||'',exercises};
+  const wk={id:uid(),date:$('planDate').value||new Date().toISOString().split('T')[0],duration:liveTotalSec?Math.round(liveTotalSec/60):'',pauseDuration:livePauseSec?Math.round(livePauseSec/60):'',pauseCount:livePauseCnt,rpe:getRpeValue(),notes:$('planNotes').value||'',exercises};
   // Detect new PRs before saving
   const newPRs=[];
   exercises.forEach(ex=>{
@@ -2338,6 +2347,103 @@ Chart.defaults.plugins.tooltip.titleFont={family:"'JetBrains Mono',monospace",si
 Chart.defaults.plugins.tooltip.bodyFont={family:"'JetBrains Mono',monospace",size:11};
 Chart.defaults.animation.duration=550;
 Chart.defaults.animation.easing='easeOutQuart';
+
+/* ══ AUTO RPE ══ */
+// Based on % of estimated 1RM → RPE lookup table (Helms / RTS method)
+// 1RM estimated with Epley: 1RM = kg * (1 + reps/30)
+// % of 1RM → RPE (simplified Brzycki inverse)
+const PCT_TO_RPE = [
+  {pct:100,rpe:10},{pct:97,rpe:9.5},{pct:94,rpe:9},{pct:92,rpe:8.5},
+  {pct:89,rpe:8}, {pct:86,rpe:7.5},{pct:83,rpe:7},{pct:81,rpe:6.5},
+  {pct:79,rpe:6}, {pct:77,rpe:5.5},{pct:75,rpe:5},{pct:70,rpe:4},
+];
+
+function pctToRpe(pct){
+  for(const row of PCT_TO_RPE){
+    if(pct >= row.pct) return row.rpe;
+  }
+  return 4;
+}
+
+function estimateRpe(){
+  // Collect all completed sets across all exercises
+  let totalRpe = 0, count = 0;
+  liveExs.forEach(ex => {
+    const pr1RM = calcEx1RM(ex.name); // best historical 1RM for this exercise
+    if(!pr1RM) return;
+    ex.sets.forEach(s => {
+      if(!s.done || !s.kg || !s.reps) return;
+      const set1RM = (+s.kg) * (1 + (+s.reps)/30);
+      const pct = Math.round(set1RM / pr1RM * 100);
+      // Higher reps at same % = lower RPE (more reps in reserve)
+      // Adjust: more reps → slightly lower RPE
+      let rpe = pctToRpe(Math.min(pct, 100));
+      // Rep adjustment: for every rep above 5, subtract 0.5 from RPE
+      if(+s.reps > 5) rpe = Math.max(4, rpe - (+s.reps - 5) * 0.3);
+      totalRpe += rpe;
+      count++;
+    });
+  });
+  if(!count) return null;
+  return Math.round(totalRpe / count * 2) / 2; // round to nearest 0.5
+}
+
+function calcEx1RM(name){
+  let best = 0;
+  workouts.forEach(w => {
+    (w.exercises||[]).filter(e=>e.ex===name).forEach(e=>{
+      const est = (+e.kg||0) * (1 + (+e.reps||1)/30);
+      if(est > best) best = est;
+    });
+  });
+  return best > 0 ? best : null;
+}
+
+// RPE mode: 'auto' or 'manual'
+let rpeMode = 'auto';
+
+function toggleRpeMode(){
+  rpeMode = rpeMode === 'auto' ? 'manual' : 'auto';
+  const lbl = $('rpeModeLabel');
+  const inp = $('planRpe');
+  const disp = $('rpeAutoDisplay');
+  if(rpeMode === 'manual'){
+    lbl.textContent = 'MANUAL';
+    lbl.style.color = 'var(--amber)';
+    disp.style.display = 'none';
+    inp.style.display = '';
+    inp.focus();
+    toast('RPE manual — escríbelo tú', 'ok');
+  } else {
+    lbl.textContent = 'AUTO';
+    lbl.style.color = 'var(--a)';
+    disp.style.display = '';
+    inp.style.display = 'none';
+    inp.value = '';
+    updateAutoRpe();
+    toast('RPE automático activado', 'good');
+  }
+}
+
+function updateAutoRpe(){
+  if(rpeMode !== 'auto') return;
+  const est = estimateRpe();
+  const disp = $('rpeAutoDisplay');
+  if(disp){
+    disp.textContent = est ? est.toFixed(1) : '—';
+    disp.style.color = !est ? 'var(--t3)' :
+      est >= 9 ? 'var(--red)' :
+      est >= 7 ? 'var(--amber)' : 'var(--green)';
+  }
+}
+
+function getRpeValue(){
+  if(rpeMode === 'manual'){
+    return $('planRpe').value || '';
+  }
+  const est = estimateRpe();
+  return est ? est.toFixed(1) : '';
+}
 
 /* ══ INIT ══ */
 updateGreeting();
